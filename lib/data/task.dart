@@ -25,31 +25,46 @@ class Task {
     DateTime? due,
     TaskStatus? status,
     TaskPriority? priority,
-  }) => Task(
-    id: id ?? this.id,
-    title: title ?? this.title,
-    description: description ?? this.description,
-    due: due ?? this.due,
-    status: status ?? this.status,
-    priority: priority ?? this.priority,
-  );
+  }) {
+    return Task(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      due: due ?? this.due,
+      status: status ?? this.status,
+      priority: priority ?? this.priority,
+    );
+  }
 
   // SQLite mapping
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'due': due?.millisecondsSinceEpoch,
-    'status': status.index,
-    'priority': priority.index,
-  };
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'due': due?.millisecondsSinceEpoch,   // <— time-safe
+      'status': status.index,
+      'priority': priority.index,
+    };
+  }
 
-  static Task fromMap(Map<String, dynamic> m) => Task(
-    id: m['id'] as int?,
-    title: m['title'] as String,
-    description: m['description'] as String?,
-    due: (m['due'] as int?) != null ? DateTime.fromMillisecondsSinceEpoch(m['due'] as int) : null,
-    status: TaskStatus.values[m['status'] as int],
-    priority: TaskPriority.values[m['priority'] as int],
-  );
+  static Task fromMap(Map<String, dynamic> m) {
+    DateTime? parseDue(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+      if (v is String && v.isNotEmpty) {
+        return DateTime.parse(v).toLocal();
+      }
+      return null;
+    }
+
+    return Task(
+      id: m['id'] as int?,
+      title: m['title'] as String,
+      description: m['description'] as String?,
+      due: parseDue(m['due']),
+      status: TaskStatus.values[(m['status'] as int?) ?? 0],
+      priority: TaskPriority.values[(m['priority'] as int?) ?? 1],
+    );
+  }
 }

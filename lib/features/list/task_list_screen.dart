@@ -66,7 +66,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
             icon: const Icon(Icons.sync),
             tooltip: 'Sync (stub)',
             onPressed: () async {
-              await repo.fakeSync();
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Synced')));
             },
           ),
