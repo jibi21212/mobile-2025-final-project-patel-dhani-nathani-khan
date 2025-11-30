@@ -107,92 +107,278 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottom),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(widget.existing == null ? 'New Task' : 'Edit Task', style: Theme.of(context).textTheme.titleLarge),
-                TextFormField(
-                  initialValue: _title,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  onSaved: (v) => _title = v ?? '',
-                ),
-                TextFormField(
-                  initialValue: _desc,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                  maxLines: 3,
-                  onSaved: (v) => _desc = v,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<TaskPriority>(
-                        value: _priority,
-                        items: TaskPriority.values.map((p) =>
-                            DropdownMenuItem(value: p, child: Text('Priority: ${p.name}'))).toList(),
-                        onChanged: (v) => setState(() => _priority = v!),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Theme.of(context).colorScheme.surface : Colors.white;
+    final fieldColor = isDark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.grey.shade50;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottom),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _form,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<TaskStatus>(
-                        value: _status,
-                        items: TaskStatus.values.map((s) =>
-                            DropdownMenuItem(value: s, child: Text('Status: ${s.name}'))).toList(),
-                        onChanged: (v) => setState(() => _status = v!),
+                  ),
+                  Text(
+                    widget.existing == null ? 'New Task' : 'Edit Task',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    initialValue: _title,
+                    decoration: InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'Enter task title',
+                      filled: true,
+                      fillColor: fieldColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _due == null ? 'No due date/time' : 'Due: ${_formatDue(_due!)}',
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    onSaved: (v) => _title = v ?? '',
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    initialValue: _desc,
+                    decoration: InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'Enter task description (optional)',
+                      filled: true,
+                      fillColor: fieldColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
-                    ),
-                    TextButton.icon(
-                      onPressed: _pickDate,
-                      icon: const Icon(Icons.event),
-                      label: const Text('Pick date'),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: _pickTime,
-                      icon: const Icon(Icons.access_time),
-                      label: const Text('Pick time'),
-                    ),
-                    const SizedBox(width: 8),
-                    if (_due != null)
-                      IconButton(
-                        tooltip: 'Clear',
-                        onPressed: () => setState(() => _due = null),
-                        icon: const Icon(Icons.clear),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                    const Spacer(),
-                    FilledButton(onPressed: _save, child: const Text('Save')),
-                  ],
-                ),
-              ],
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 3,
+                    onSaved: (v) => _desc = v,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: fieldColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Theme.of(context).dividerColor),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: DropdownButtonFormField<TaskPriority>(
+                            value: _priority,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              labelText: 'Priority',
+                            ),
+                            items: TaskPriority.values.map((p) => DropdownMenuItem(
+                              value: p,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      color: _getPriorityColor(p),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  Text(p.name[0].toUpperCase() + p.name.substring(1)),
+                                ],
+                              ),
+                            )).toList(),
+                            onChanged: (v) => setState(() => _priority = v!),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: fieldColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Theme.of(context).dividerColor),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: DropdownButtonFormField<TaskStatus>(
+                            value: _status,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              labelText: 'Status',
+                            ),
+                            items: TaskStatus.values.map((s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(s.name[0].toUpperCase() + s.name.substring(1)),
+                            )).toList(),
+                            onChanged: (v) => setState(() => _status = v!),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 20, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Due Date',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _due == null ? 'No due date set' : _formatDue(_due!),
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _pickDate,
+                                icon: const Icon(Icons.event, size: 18),
+                                label: const Text('Pick Date'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _pickTime,
+                                icon: const Icon(Icons.access_time, size: 18),
+                                label: const Text('Pick Time'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (_due != null) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                tooltip: 'Clear',
+                                onPressed: () => setState(() => _due = null),
+                                icon: Icon(Icons.clear, color: Colors.red.shade400),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton(
+                          onPressed: _save,
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Save Task'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Color _getPriorityColor(TaskPriority p) {
+    switch (p) {
+      case TaskPriority.high: return Colors.red;
+      case TaskPriority.medium: return Colors.orange;
+      case TaskPriority.low: return Colors.green;
+    }
   }
 }
