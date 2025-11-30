@@ -162,6 +162,29 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 ),
               ),
               child: Icon(
+                Icons.dashboard,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            tooltip: 'Dashboard',
+            onPressed: () => context.go('/dashboard'),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Theme.of(context).colorScheme.surfaceContainerHighest
+                    : Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
                 Icons.settings,
                 color: Theme.of(context).colorScheme.primary,
                 size: 20,

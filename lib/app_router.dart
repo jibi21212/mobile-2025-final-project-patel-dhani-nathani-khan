@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'features/list/task_list_screen.dart';
 import 'features/details/task_details_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/dashboard/dashboard_screen.dart';
 
 final appRouter = GoRouter(
   routes: [
@@ -17,6 +18,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: 'settings',
           builder: (ctx, st) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: 'dashboard',
+          builder: (ctx, st) => const DashboardScreen(),
         ),
         // Future: GoRoute(path: 'whiteboard', builder: ...)
       ],
