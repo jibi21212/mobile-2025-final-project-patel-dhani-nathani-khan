@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:timezone/data/latest.dart' as tz;
 import 'app_router.dart';
+import 'services/notification_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize timezone and notifications
+  tz.initializeTimeZones();
+  await NotificationService().initialize();
+  
   runApp(const App());
 }
 

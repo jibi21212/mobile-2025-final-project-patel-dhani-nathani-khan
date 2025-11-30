@@ -57,9 +57,17 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
 
   // Helper Function to help quickly display
   String _formatDue(DateTime d) {
-    // Simple yyyy-mm-dd hh:mm (24h). Swap this later for intl if locale formats are desired
-    final s = d.toLocal().toString();
-    return s.substring(0, 16);
+    // Format as: Dec 1, 2025 at 3:45 PM
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final month = months[d.month - 1];
+    final day = d.day;
+    final year = d.year;
+    
+    final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final minute = d.minute.toString().padLeft(2, '0');
+    final period = d.hour >= 12 ? 'PM' : 'AM';
+    
+    return '$month $day, $year at $hour:$minute $period';
   }
 
   Future<void> _pickDate() async {
@@ -98,7 +106,15 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
       setState(() {
         // If no date yet, default date to today when time is chosen first
         final baseDate = _due ?? DateTime.now();
-        _due = _combineDateAndTime(baseDate, res);
+        // Ensure we keep the date portion and only update the time
+        _due = DateTime(
+          baseDate.year,
+          baseDate.month,
+          baseDate.day,
+          res.hour,
+          res.minute,
+        );
+        print('Updated time to: $_due'); // Debug print
       });
     }
   }
@@ -323,10 +339,17 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                             ),
                             if (_due != null) ...[
                               const SizedBox(width: 8),
-                              IconButton(
-                                tooltip: 'Clear',
+                              OutlinedButton.icon(
                                 onPressed: () => setState(() => _due = null),
-                                icon: Icon(Icons.clear, color: Colors.red.shade400),
+                                icon: const Icon(Icons.clear, size: 18),
+                                label: const Text('Clear'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red.shade400,
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
                               ),
                             ],
                           ],

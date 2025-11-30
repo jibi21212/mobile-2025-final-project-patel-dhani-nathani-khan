@@ -83,10 +83,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String _formatDueDate(DateTime dt) {
     final now = DateTime.now();
     final diff = dt.difference(now);
-    if (diff.inDays == 0) return 'Today ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
-    if (diff.inDays == 1) return 'Tomorrow';
-    if (diff.inDays < 0) return 'Overdue';
-    return '${dt.month}/${dt.day}/${dt.year}';
+    
+    // Format time as 12-hour with AM/PM
+    final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$hour:$minute $period';
+    
+    if (diff.inDays == 0) return 'Today at $timeStr';
+    if (diff.inDays == 1) return 'Tomorrow at $timeStr';
+    if (diff.inDays < 0) return 'Overdue - $timeStr';
+    return '${dt.month}/${dt.day}/${dt.year} at $timeStr';
   }
 
   @override
@@ -261,10 +268,76 @@ class _TaskListScreenState extends State<TaskListScreen> {
                             padding: const EdgeInsets.all(12),
                             child: Row(
                               children: [
-                                Icon(
-                                  _getStatusIcon(t.status),
-                                  color: isDone ? Colors.green : _getPriorityAccent(t.priority),
-                                  size: 28,
+                                GestureDetector(
+                                  onTap: () async {
+                                    print('Status icon tapped! Current status: ${t.status}');
+                                    final newStatus = t.status == TaskStatus.done 
+                                        ? TaskStatus.todo 
+                                        : TaskStatus.done;
+                                    print('Changing to: $newStatus');
+                                    final updated = t.copyWith(status: newStatus);
+                                    await repo.update(updated);
+                                    _load();
+                                    print('Showing snackbar...');
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Row(
+                                            children: [
+                                              Icon(
+                                                newStatus == TaskStatus.done 
+                                                    ? Icons.celebration 
+                                                    : Icons.radio_button_unchecked,
+                                                color: Colors.white,
+                                                size: 24,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      newStatus == TaskStatus.done 
+                                                          ? '🎉 Task Completed!' 
+                                                          : 'Task Incomplete',
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    if (newStatus == TaskStatus.done)
+                                                      const Text(
+                                                        'Great job! Keep it up!',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color: Colors.white70,
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          backgroundColor: newStatus == TaskStatus.done 
+                                              ? Colors.green.shade600
+                                              : Colors.orange.shade700,
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: const Duration(seconds: 3),
+                                          margin: const EdgeInsets.all(16),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                      );
+                                      print('Snackbar shown!');
+                                    }
+                                  },
+                                  child: Icon(
+                                    _getStatusIcon(t.status),
+                                    color: isDone ? Colors.green : _getPriorityAccent(t.priority),
+                                    size: 28,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(

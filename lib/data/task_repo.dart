@@ -1,9 +1,11 @@
 // lib/data/task_repo.dart
 import 'package:sqflite/sqflite.dart';
 import 'task.dart';
+import '../services/notification_service.dart';
 
 class TaskRepo {
   Database? _db;
+  final _notificationService = NotificationService();
 
   Future<void> _open() async {
     _db ??= await openDatabase(
@@ -32,18 +34,33 @@ class TaskRepo {
 
   Future<int> create(Task t) async {
     await _open();
-    return await _db!.insert('tasks', t.toMap(),
+    final id = await _db!.insert('tasks', t.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
+    
+    // Schedule notification for the new task
+    final taskWithId = t.copyWith(id: id);
+    await _notificationService.scheduleTaskReminder(taskWithId);
+    
+    return id;
   }
 
   Future<void> update(Task t) async {
     await _open();
     await _db!.update('tasks', t.toMap(), where: 'id=?', whereArgs: [t.id]);
+    
+    // Cancel old notification and schedule new one
+    if (t.id != null) {
+      await _notificationService.cancelTaskReminder(t.id!);
+      await _notificationService.scheduleTaskReminder(t);
+    }
   }
 
   Future<void> delete(int id) async {
     await _open();
     await _db!.delete('tasks', where: 'id=?', whereArgs: [id]);
+    
+    // Cancel notification for deleted task
+    await _notificationService.cancelTaskReminder(id);
   }
 
   Future<List<Task>> all() async {
