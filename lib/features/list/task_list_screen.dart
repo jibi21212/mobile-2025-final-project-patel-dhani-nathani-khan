@@ -7,6 +7,8 @@ import '../../widgets/confirm_dialog.dart';
 import '../../services/auth_service.dart';
 import '../../services/cloud_sync_service.dart';
 
+enum TaskSortMode { none, byDueDate, byPriority, byStatus }
+
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
   @override
@@ -21,6 +23,10 @@ class _TaskListScreenState extends State<TaskListScreen>
   List<Task> tasks = [];
   bool _syncing = false;
   String? _lastSyncedAt;
+
+  String _searchQuery = '';
+  TaskSortMode _sortMode = TaskSortMode.byDueDate;
+  bool _hideCompleted = false;
 
   Future<void> _load() async {
     tasks = await repo.all();
@@ -114,13 +120,31 @@ class _TaskListScreenState extends State<TaskListScreen>
 
   Future<void> _delete(Task t) async {
     final ok = await confirmDialog(context, 'Delete "${t.title}"?');
-    if (ok) {
-      await repo.delete(t.id!);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Task deleted')));
-      _load();
-    }
+    if (!ok) return;
+
+    // Keep a copy for UNDO
+    final deletedTask = t;
+
+    // Delete from DB
+    await repo.delete(t.id!);
+    await _load(); // refresh list
+
+    if (!mounted) return;
+
+    // Show snackbar with UNDO action
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Task deleted'),
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () async {
+            // Re-create the task (new id, same content)
+            await repo.create(deletedTask.copyWith(id: null));
+            await _load();
+          },
+        ),
+      ),
+    );
   }
 
   Color _getPriorityColor(TaskPriority p) {
@@ -214,6 +238,359 @@ class _TaskListScreenState extends State<TaskListScreen>
     if (diff.inDays == 1) return 'Tomorrow at $timeStr';
     if (diff.inDays < 0) return 'Overdue - $timeStr';
     return '${dt.month}/${dt.day}/${dt.year} at $timeStr';
+  }
+
+  List<Task> _getVisibleTasks() {
+    var list = List<Task>.from(tasks);
+
+    // Search filter
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      list = list.where((t) {
+        final title = t.title.toLowerCase();
+        final desc = (t.description ?? '').toLowerCase();
+        return title.contains(q) || desc.contains(q);
+      }).toList();
+    }
+
+    // Hide completed filter
+    if (_hideCompleted) {
+      list = list.where((t) => t.status != TaskStatus.done).toList();
+    }
+
+    // Sorting
+    switch (_sortMode) {
+      case TaskSortMode.byDueDate:
+        list.sort((a, b) {
+          final aDue = a.due;
+          final bDue = b.due;
+          if (aDue == null && bDue == null) return 0;
+          if (aDue == null) return 1; // nulls last
+          if (bDue == null) return -1;
+          return aDue.compareTo(bDue);
+        });
+        break;
+      case TaskSortMode.byPriority:
+        // high > medium > low
+        list.sort((a, b) => b.priority.index.compareTo(a.priority.index));
+        break;
+      case TaskSortMode.byStatus:
+        // todo < inProgress < done
+        list.sort((a, b) => a.status.index.compareTo(b.status.index));
+        break;
+      case TaskSortMode.none:
+        break;
+    }
+
+    return list;
+  }
+
+  Widget _buildTaskList(bool isDark) {
+    final visibleTasks = _getVisibleTasks();
+
+    if (tasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.task_alt, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No tasks yet',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tap + to create your first task',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (visibleTasks.isEmpty) {
+      return Center(
+        child: Text(
+          'No tasks match your search',
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: visibleTasks.length,
+        itemBuilder: (_, i) {
+          final t = visibleTasks[i];
+          final isDone = t.status == TaskStatus.done;
+          return Dismissible(
+            key: ValueKey(t.id ?? '${t.title}-$i'),
+            background: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade400,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            confirmDismiss: (_) async {
+              await _delete(t);
+              return false;
+            },
+            child: Card(
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: _getPriorityAccent(t.priority),
+                  width: 2,
+                ),
+              ),
+              child: InkWell(
+                onTap: () => context.go('/task/${t.id}'),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [_getPriorityColor(t.priority), Colors.white],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            final isCurrentlyDone = t.status == TaskStatus.done;
+
+                            // Recurring task behaviour
+                            if (!isCurrentlyDone &&
+                                t.recurrence != TaskRecurrence.none &&
+                                t.due != null) {
+                              final nextDue = _nextDueDate(
+                                t.due!,
+                                t.recurrence,
+                              );
+
+                              final updated = t.copyWith(
+                                status: TaskStatus.todo,
+                                due: nextDue,
+                              );
+
+                              await repo.update(updated);
+                              _load();
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Recurring task completed. Next occurrence: ${_formatDueDate(nextDue)}',
+                                    ),
+                                    backgroundColor: Colors.green.shade600,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 3),
+                                    margin: const EdgeInsets.all(16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+
+                            // Normal toggle behaviour
+                            final newStatus = isCurrentlyDone
+                                ? TaskStatus.todo
+                                : TaskStatus.done;
+                            final updated = t.copyWith(status: newStatus);
+                            await repo.update(updated);
+                            _load();
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(
+                                        newStatus == TaskStatus.done
+                                            ? Icons.celebration
+                                            : Icons.radio_button_unchecked,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              newStatus == TaskStatus.done
+                                                  ? '🎉 Task Completed!'
+                                                  : 'Task Incomplete',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            if (newStatus == TaskStatus.done)
+                                              const Text(
+                                                'Great job! Keep it up!',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Colors.white70,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor: newStatus == TaskStatus.done
+                                      ? Colors.green.shade600
+                                      : Colors.orange.shade700,
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 3),
+                                  margin: const EdgeInsets.all(16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          child: Icon(
+                            _getStatusIcon(t.status),
+                            color: isDone
+                                ? Colors.green
+                                : _getPriorityAccent(t.priority),
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.title,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: isDone
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  color: isDone ? Colors.grey : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  // Priority pill
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _getPriorityAccent(t.priority),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      t.priority.name.toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Recurrence pill
+                                  if (t.recurrence != TaskRecurrence.none)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blueGrey.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.blueGrey.shade200,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.repeat, size: 12),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _recurrenceLabel(t.recurrence),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                  // Due date
+                                  if (t.due != null)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.access_time,
+                                          size: 14,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _formatDueDate(t.due!),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined),
+                          color: _getPriorityAccent(t.priority),
+                          onPressed: () => _edit(t),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -316,6 +693,52 @@ class _TaskListScreenState extends State<TaskListScreen>
             onPressed: () => context.go('/dashboard'),
           ),
           const SizedBox(width: 8),
+
+          // Sort menu
+          PopupMenuButton<TaskSortMode>(
+            tooltip: 'Sort tasks',
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Theme.of(context).colorScheme.surfaceContainerHighest
+                    : Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                Icons.sort,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            onSelected: (mode) {
+              setState(() => _sortMode = mode);
+            },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(
+                value: TaskSortMode.byDueDate,
+                child: Text('Sort by due date'),
+              ),
+              PopupMenuItem(
+                value: TaskSortMode.byPriority,
+                child: Text('Sort by priority'),
+              ),
+              PopupMenuItem(
+                value: TaskSortMode.byStatus,
+                child: Text('Sort by status'),
+              ),
+              PopupMenuItem(
+                value: TaskSortMode.none,
+                child: Text('No sorting'),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
@@ -367,391 +790,42 @@ class _TaskListScreenState extends State<TaskListScreen>
                 ],
               ),
             ),
-          Expanded(
-            child: tasks.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.task_alt,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No tasks yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap + to create your first task',
-                          style: TextStyle(color: Colors.grey.shade500),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(8),
-                      itemCount: tasks.length,
-                      itemBuilder: (_, i) {
-                        final t = tasks[i];
-                        final isDone = t.status == TaskStatus.done;
-                        return Dismissible(
-                          key: ValueKey(t.id ?? '${t.title}-$i'),
-                          background: Container(
-                            margin: const EdgeInsets.symmetric(
-                              vertical: 4,
-                              horizontal: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade400,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 20),
-                            child: const Icon(
-                              Icons.delete,
-                              color: Colors.white,
-                            ),
-                          ),
-                          confirmDismiss: (_) async {
-                            await _delete(t);
-                            return false;
-                          },
-                          child: Card(
-                            margin: const EdgeInsets.symmetric(
-                              vertical: 4,
-                              horizontal: 8,
-                            ),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: _getPriorityAccent(t.priority),
-                                width: 2,
-                              ),
-                            ),
-                            child: InkWell(
-                              onTap: () => context.go('/task/${t.id}'),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      _getPriorityColor(t.priority),
-                                      Colors.white,
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Row(
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () async {
-                                          final isCurrentlyDone =
-                                              t.status == TaskStatus.done;
 
-                                          // Recurring task behaviour
-                                          if (!isCurrentlyDone &&
-                                              t.recurrence !=
-                                                  TaskRecurrence.none &&
-                                              t.due != null) {
-                                            final nextDue = _nextDueDate(
-                                              t.due!,
-                                              t.recurrence,
-                                            );
-
-                                            final updated = t.copyWith(
-                                              status: TaskStatus.todo,
-                                              due: nextDue,
-                                            );
-
-                                            await repo.update(updated);
-                                            _load();
-
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Recurring task completed. Next occurrence: ${_formatDueDate(nextDue)}',
-                                                  ),
-                                                  backgroundColor:
-                                                      Colors.green.shade600,
-                                                  behavior:
-                                                      SnackBarBehavior.floating,
-                                                  duration: const Duration(
-                                                    seconds: 3,
-                                                  ),
-                                                  margin: const EdgeInsets.all(
-                                                    16,
-                                                  ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          12,
-                                                        ),
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                            return;
-                                          }
-
-                                          // Normal toggle behaviour
-                                          final newStatus = isCurrentlyDone
-                                              ? TaskStatus.todo
-                                              : TaskStatus.done;
-                                          final updated = t.copyWith(
-                                            status: newStatus,
-                                          );
-                                          await repo.update(updated);
-                                          _load();
-
-                                          if (mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Row(
-                                                  children: [
-                                                    Icon(
-                                                      newStatus ==
-                                                              TaskStatus.done
-                                                          ? Icons.celebration
-                                                          : Icons
-                                                                .radio_button_unchecked,
-                                                      color: Colors.white,
-                                                      size: 24,
-                                                    ),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            newStatus ==
-                                                                    TaskStatus
-                                                                        .done
-                                                                ? '🎉 Task Completed!'
-                                                                : 'Task Incomplete',
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 16,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                          ),
-                                                          if (newStatus ==
-                                                              TaskStatus.done)
-                                                            const Text(
-                                                              'Great job! Keep it up!',
-                                                              style: TextStyle(
-                                                                fontSize: 13,
-                                                                color: Colors
-                                                                    .white70,
-                                                              ),
-                                                            ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                backgroundColor:
-                                                    newStatus == TaskStatus.done
-                                                    ? Colors.green.shade600
-                                                    : Colors.orange.shade700,
-                                                behavior:
-                                                    SnackBarBehavior.floating,
-                                                duration: const Duration(
-                                                  seconds: 3,
-                                                ),
-                                                margin: const EdgeInsets.all(
-                                                  16,
-                                                ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                        child: Icon(
-                                          _getStatusIcon(t.status),
-                                          color: isDone
-                                              ? Colors.green
-                                              : _getPriorityAccent(t.priority),
-                                          size: 28,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              t.title,
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                decoration: isDone
-                                                    ? TextDecoration.lineThrough
-                                                    : null,
-                                                color: isDone
-                                                    ? Colors.grey
-                                                    : Colors.black87,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Wrap(
-                                              spacing: 8,
-                                              runSpacing: 4,
-                                              crossAxisAlignment:
-                                                  WrapCrossAlignment.center,
-                                              children: [
-                                                // Priority pill
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: _getPriorityAccent(
-                                                      t.priority,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                  child: Text(
-                                                    t.priority.name
-                                                        .toUpperCase(),
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-
-                                                // Recurrence pill
-                                                if (t.recurrence !=
-                                                    TaskRecurrence.none)
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors
-                                                          .blueGrey
-                                                          .shade50,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: Colors
-                                                            .blueGrey
-                                                            .shade200,
-                                                        width: 1,
-                                                      ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        const Icon(
-                                                          Icons.repeat,
-                                                          size: 12,
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 4,
-                                                        ),
-                                                        Text(
-                                                          _recurrenceLabel(
-                                                            t.recurrence,
-                                                          ),
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 11,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500,
-                                                              ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-
-                                                // Due date
-                                                if (t.due != null)
-                                                  Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.access_time,
-                                                        size: 14,
-                                                        color: Colors
-                                                            .grey
-                                                            .shade600,
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        _formatDueDate(t.due!),
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          color: Colors
-                                                              .grey
-                                                              .shade700,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined),
-                                        color: _getPriorityAccent(t.priority),
-                                        onPressed: () => _edit(t),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search tasks...',
+                prefixIcon: const Icon(Icons.search),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
+            ),
           ),
+
+          // Hide completed filter chip
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FilterChip(
+                label: const Text('Hide completed'),
+                avatar: const Icon(Icons.check_circle_outline, size: 18),
+                selected: _hideCompleted,
+                onSelected: (v) {
+                  setState(() => _hideCompleted = v);
+                },
+              ),
+            ),
+          ),
+
+          Expanded(child: _buildTaskList(isDark)),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
