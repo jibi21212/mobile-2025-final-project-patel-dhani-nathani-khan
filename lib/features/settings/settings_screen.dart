@@ -19,7 +19,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _userLabel = _authService.email ?? (_authService.guestId != null ? 'Guest ${_authService.guestId}' : null);
+    _userLabel =
+        _authService.email ??
+        (_authService.guestId != null ? 'Guest ${_authService.guestId}' : null);
     _guestId = _authService.guestId;
   }
 
@@ -30,16 +32,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context.go('/auth');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign out failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -86,7 +88,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: notifications,
                   onChanged: (v) => setState(() => notifications = v),
                   title: const Text('Task Reminders'),
-                  subtitle: const Text('Get notified 1 hour before task due time'),
+                  subtitle: const Text(
+                    'Get notified 1 hour before task due time',
+                  ),
                   secondary: Icon(
                     Icons.notifications_active,
                     color: Theme.of(context).colorScheme.primary,
@@ -102,13 +106,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Send a test notification'),
                   trailing: const Icon(Icons.send),
                   onTap: () async {
-                    await _notificationService.showImmediateNotification(
-                      'Test Notification',
-                      'This is a test notification from Task Manager',
-                    );
+                    await _notificationService.testNotification();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Test notification sent!')),
+                        const SnackBar(
+                          content: Text('Test notification sent!'),
+                        ),
                       );
                     }
                   },
@@ -120,13 +123,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   title: const Text('Test Scheduled Notification'),
-                  subtitle: const Text('Schedule a notification for 10 seconds from now'),
+                  subtitle: const Text(
+                    'Schedule a notification for 10 seconds from now',
+                  ),
                   trailing: const Icon(Icons.timer),
                   onTap: () async {
                     await _notificationService.testScheduledNotification();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Notification scheduled for 10 seconds from now!')),
+                        const SnackBar(
+                          content: Text(
+                            'Notification scheduled for 10 seconds from now!',
+                          ),
+                        ),
                       );
                     }
                   },
@@ -154,7 +163,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   title: const Text('Cloud Sync'),
-                  subtitle: const Text('Use Sync on the task list to push/pull data'),
+                  subtitle: const Text(
+                    'Use Sync on the task list to push/pull data',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go('/'),
                 ),

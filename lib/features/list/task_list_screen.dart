@@ -13,7 +13,8 @@ class TaskListScreen extends StatefulWidget {
   State<TaskListScreen> createState() => _TaskListScreenState();
 }
 
-class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObserver {
+class _TaskListScreenState extends State<TaskListScreen>
+    with WidgetsBindingObserver {
   final repo = TaskRepo();
   final _authService = AuthService.instance;
   final _cloudSyncService = CloudSyncService.instance;
@@ -41,7 +42,8 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       _cloudSyncService.pushLocalToCloud().catchError((_) {});
     }
   }
@@ -67,15 +69,15 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
       await _load();
       _lastSyncedAt = TimeOfDay.now().format(context);
       if (!initial && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cloud sync complete')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Cloud sync complete')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cloud sync failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Cloud sync failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _syncing = false);
@@ -89,7 +91,9 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
       builder: (_) => TaskEditSheet(),
     );
     if (created != null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task created')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Task created')));
       _load();
     }
   }
@@ -101,7 +105,9 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
       builder: (_) => TaskEditSheet(existing: t),
     );
     if (updated != null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task updated')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Task updated')));
       _load();
     }
   }
@@ -110,44 +116,100 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
     final ok = await confirmDialog(context, 'Delete "${t.title}"?');
     if (ok) {
       await repo.delete(t.id!);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task deleted')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Task deleted')));
       _load();
     }
   }
 
   Color _getPriorityColor(TaskPriority p) {
     switch (p) {
-      case TaskPriority.high: return Colors.red.shade100;
-      case TaskPriority.medium: return Colors.orange.shade100;
-      case TaskPriority.low: return Colors.green.shade100;
+      case TaskPriority.high:
+        return Colors.red.shade100;
+      case TaskPriority.medium:
+        return Colors.orange.shade100;
+      case TaskPriority.low:
+        return Colors.green.shade100;
     }
   }
 
   Color _getPriorityAccent(TaskPriority p) {
     switch (p) {
-      case TaskPriority.high: return Colors.red.shade700;
-      case TaskPriority.medium: return Colors.orange.shade700;
-      case TaskPriority.low: return Colors.green.shade700;
+      case TaskPriority.high:
+        return Colors.red.shade700;
+      case TaskPriority.medium:
+        return Colors.orange.shade700;
+      case TaskPriority.low:
+        return Colors.green.shade700;
+    }
+  }
+
+  String _recurrenceLabel(TaskRecurrence r) {
+    switch (r) {
+      case TaskRecurrence.daily:
+        return 'Daily';
+      case TaskRecurrence.weekly:
+        return 'Weekly';
+      case TaskRecurrence.weekdays:
+        return 'Weekdays';
+      case TaskRecurrence.monthly:
+        return 'Monthly';
+      case TaskRecurrence.none:
+      default:
+        return '';
     }
   }
 
   IconData _getStatusIcon(TaskStatus s) {
     switch (s) {
-      case TaskStatus.todo: return Icons.radio_button_unchecked;
-      case TaskStatus.inProgress: return Icons.hourglass_empty;
-      case TaskStatus.done: return Icons.check_circle;
+      case TaskStatus.todo:
+        return Icons.radio_button_unchecked;
+      case TaskStatus.inProgress:
+        return Icons.hourglass_empty;
+      case TaskStatus.done:
+        return Icons.check_circle;
+    }
+  }
+
+  // Helper to compute the next due date for recurring tasks
+  DateTime _nextDueDate(DateTime from, TaskRecurrence recurrence) {
+    switch (recurrence) {
+      case TaskRecurrence.daily:
+        return from.add(const Duration(days: 1));
+      case TaskRecurrence.weekly:
+        return from.add(const Duration(days: 7));
+      case TaskRecurrence.weekdays:
+        var next = from.add(const Duration(days: 1));
+        while (next.weekday == DateTime.saturday ||
+            next.weekday == DateTime.sunday) {
+          next = next.add(const Duration(days: 1));
+        }
+        return next;
+      case TaskRecurrence.monthly:
+        return DateTime(
+          from.year,
+          from.month + 1,
+          from.day,
+          from.hour,
+          from.minute,
+        );
+      case TaskRecurrence.none:
+      default:
+        return from;
     }
   }
 
   String _formatDueDate(DateTime dt) {
     final now = DateTime.now();
     final diff = dt.difference(now);
-    
+
+    // Format time as 12 hour with AM or PM
     final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
     final minute = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'PM' : 'AM';
     final timeStr = '$hour:$minute $period';
-    
+
     if (diff.inDays == 0) return 'Today at $timeStr';
     if (diff.inDays == 1) return 'Tomorrow at $timeStr';
     if (diff.inDays < 0) return 'Overdue - $timeStr';
@@ -168,7 +230,7 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
               width: 2,
             ),
             borderRadius: BorderRadius.circular(12),
-            color: isDark 
+            color: isDark
                 ? Theme.of(context).colorScheme.surfaceContainerHighest
                 : Colors.white.withOpacity(0.9),
           ),
@@ -185,7 +247,8 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
                       : Theme.of(context).colorScheme.onPrimaryContainer,
                 ),
               ),
-              if (_authService.email != null || _authService.guestId != null) ...[
+              if (_authService.email != null ||
+                  _authService.guestId != null) ...[
                 const SizedBox(height: 2),
                 Text(
                   _authService.isGuest
@@ -195,7 +258,9 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
                     fontSize: 12,
                     color: isDark
                         ? Theme.of(context).colorScheme.onSurfaceVariant
-                        : Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                        : Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer.withOpacity(0.8),
                   ),
                 ),
               ],
@@ -308,11 +373,18 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.task_alt, size: 64, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.task_alt,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'No tasks yet',
-                          style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -333,25 +405,37 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
                         return Dismissible(
                           key: ValueKey(t.id ?? '${t.title}-$i'),
                           background: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            margin: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red.shade400,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             alignment: Alignment.centerRight,
                             padding: const EdgeInsets.only(right: 20),
-                            child: const Icon(Icons.delete, color: Colors.white),
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                            ),
                           ),
                           confirmDismiss: (_) async {
                             await _delete(t);
                             return false;
                           },
                           child: Card(
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            margin: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 8,
+                            ),
                             elevation: 2,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: _getPriorityAccent(t.priority), width: 2),
+                              side: BorderSide(
+                                color: _getPriorityAccent(t.priority),
+                                width: 2,
+                              ),
                             ),
                             child: InkWell(
                               onTap: () => context.go('/task/${t.id}'),
@@ -360,7 +444,10 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                   gradient: LinearGradient(
-                                    colors: [_getPriorityColor(t.priority), Colors.white],
+                                    colors: [
+                                      _getPriorityColor(t.priority),
+                                      Colors.white,
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
@@ -371,48 +458,114 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
                                     children: [
                                       GestureDetector(
                                         onTap: () async {
-                                          print('Status icon tapped! Current status: ${t.status}');
-                                          final newStatus = t.status == TaskStatus.done 
-                                              ? TaskStatus.todo 
+                                          final isCurrentlyDone =
+                                              t.status == TaskStatus.done;
+
+                                          // Recurring task behaviour
+                                          if (!isCurrentlyDone &&
+                                              t.recurrence !=
+                                                  TaskRecurrence.none &&
+                                              t.due != null) {
+                                            final nextDue = _nextDueDate(
+                                              t.due!,
+                                              t.recurrence,
+                                            );
+
+                                            final updated = t.copyWith(
+                                              status: TaskStatus.todo,
+                                              due: nextDue,
+                                            );
+
+                                            await repo.update(updated);
+                                            _load();
+
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Recurring task completed. Next occurrence: ${_formatDueDate(nextDue)}',
+                                                  ),
+                                                  backgroundColor:
+                                                      Colors.green.shade600,
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  duration: const Duration(
+                                                    seconds: 3,
+                                                  ),
+                                                  margin: const EdgeInsets.all(
+                                                    16,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                            return;
+                                          }
+
+                                          // Normal toggle behaviour
+                                          final newStatus = isCurrentlyDone
+                                              ? TaskStatus.todo
                                               : TaskStatus.done;
-                                          print('Changing to: $newStatus');
-                                          final updated = t.copyWith(status: newStatus);
+                                          final updated = t.copyWith(
+                                            status: newStatus,
+                                          );
                                           await repo.update(updated);
                                           _load();
-                                          print('Showing snackbar...');
+
                                           if (mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               SnackBar(
                                                 content: Row(
                                                   children: [
                                                     Icon(
-                                                      newStatus == TaskStatus.done 
-                                                          ? Icons.celebration 
-                                                          : Icons.radio_button_unchecked,
+                                                      newStatus ==
+                                                              TaskStatus.done
+                                                          ? Icons.celebration
+                                                          : Icons
+                                                                .radio_button_unchecked,
                                                       color: Colors.white,
                                                       size: 24,
                                                     ),
                                                     const SizedBox(width: 12),
                                                     Expanded(
                                                       child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        mainAxisSize: MainAxisSize.min,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
                                                         children: [
                                                           Text(
-                                                            newStatus == TaskStatus.done 
-                                                                ? '🎉 Task Completed!' 
+                                                            newStatus ==
+                                                                    TaskStatus
+                                                                        .done
+                                                                ? '🎉 Task Completed!'
                                                                 : 'Task Incomplete',
-                                                            style: const TextStyle(
-                                                              fontSize: 16,
-                                                              fontWeight: FontWeight.bold,
-                                                            ),
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 16,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
                                                           ),
-                                                          if (newStatus == TaskStatus.done)
+                                                          if (newStatus ==
+                                                              TaskStatus.done)
                                                             const Text(
                                                               'Great job! Keep it up!',
                                                               style: TextStyle(
                                                                 fontSize: 13,
-                                                                color: Colors.white70,
+                                                                color: Colors
+                                                                    .white70,
                                                               ),
                                                             ),
                                                         ],
@@ -420,70 +573,164 @@ class _TaskListScreenState extends State<TaskListScreen> with WidgetsBindingObse
                                                     ),
                                                   ],
                                                 ),
-                                                backgroundColor: newStatus == TaskStatus.done 
+                                                backgroundColor:
+                                                    newStatus == TaskStatus.done
                                                     ? Colors.green.shade600
                                                     : Colors.orange.shade700,
-                                                behavior: SnackBarBehavior.floating,
-                                                duration: const Duration(seconds: 3),
-                                                margin: const EdgeInsets.all(16),
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                duration: const Duration(
+                                                  seconds: 3,
+                                                ),
+                                                margin: const EdgeInsets.all(
+                                                  16,
+                                                ),
                                                 shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                 ),
                                               ),
                                             );
-                                            print('Snackbar shown!');
                                           }
                                         },
                                         child: Icon(
                                           _getStatusIcon(t.status),
-                                          color: isDone ? Colors.green : _getPriorityAccent(t.priority),
+                                          color: isDone
+                                              ? Colors.green
+                                              : _getPriorityAccent(t.priority),
                                           size: 28,
                                         ),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               t.title,
                                               style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w600,
-                                                decoration: isDone ? TextDecoration.lineThrough : null,
-                                                color: isDone ? Colors.grey : Colors.black87,
+                                                decoration: isDone
+                                                    ? TextDecoration.lineThrough
+                                                    : null,
+                                                color: isDone
+                                                    ? Colors.grey
+                                                    : Colors.black87,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
-                                            Row(
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 4,
+                                              crossAxisAlignment:
+                                                  WrapCrossAlignment.center,
                                               children: [
+                                                // Priority pill
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
                                                   decoration: BoxDecoration(
-                                                    color: _getPriorityAccent(t.priority),
-                                                    borderRadius: BorderRadius.circular(8),
+                                                    color: _getPriorityAccent(
+                                                      t.priority,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                   child: Text(
-                                                    t.priority.name.toUpperCase(),
+                                                    t.priority.name
+                                                        .toUpperCase(),
                                                     style: const TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                     ),
                                                   ),
                                                 ),
-                                                const SizedBox(width: 8),
-                                                if (t.due != null) ...[
-                                                  Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    _formatDueDate(t.due!),
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey.shade700,
+
+                                                // Recurrence pill
+                                                if (t.recurrence !=
+                                                    TaskRecurrence.none)
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors
+                                                          .blueGrey
+                                                          .shade50,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: Colors
+                                                            .blueGrey
+                                                            .shade200,
+                                                        width: 1,
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.repeat,
+                                                          size: 12,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        Text(
+                                                          _recurrenceLabel(
+                                                            t.recurrence,
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
+                                                              ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
-                                                ],
+
+                                                // Due date
+                                                if (t.due != null)
+                                                  Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.access_time,
+                                                        size: 14,
+                                                        color: Colors
+                                                            .grey
+                                                            .shade600,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        _formatDueDate(t.due!),
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors
+                                                              .grey
+                                                              .shade700,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                               ],
                                             ),
                                           ],

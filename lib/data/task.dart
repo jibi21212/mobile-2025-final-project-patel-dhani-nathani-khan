@@ -1,5 +1,9 @@
 enum TaskStatus { todo, inProgress, done }
+
 enum TaskPriority { low, medium, high }
+
+// NEW: recurrence options
+enum TaskRecurrence { none, daily, weekly, weekdays, monthly }
 
 class Task {
   final int? id;
@@ -8,6 +12,12 @@ class Task {
   final DateTime? due;
   final TaskStatus status;
   final TaskPriority priority;
+
+  // NEW: recurrence field
+  final TaskRecurrence recurrence;
+
+  // Will add the "assigned user" field later once we have collaborative work
+  // features implemented, until then this feature is not needed
   Task({
     this.id,
     required this.title,
@@ -15,6 +25,7 @@ class Task {
     this.due,
     this.status = TaskStatus.todo,
     this.priority = TaskPriority.medium,
+    this.recurrence = TaskRecurrence.none, // default: not recurring
   });
 
   Task copyWith({
@@ -24,6 +35,7 @@ class Task {
     DateTime? due,
     TaskStatus? status,
     TaskPriority? priority,
+    TaskRecurrence? recurrence,
   }) {
     return Task(
       id: id ?? this.id,
@@ -32,6 +44,7 @@ class Task {
       due: due ?? this.due,
       status: status ?? this.status,
       priority: priority ?? this.priority,
+      recurrence: recurrence ?? this.recurrence,
     );
   }
 
@@ -40,9 +53,10 @@ class Task {
       'id': id,
       'title': title,
       'description': description,
-      'due': due?.millisecondsSinceEpoch,
+      'due': due?.millisecondsSinceEpoch, // time safe
       'status': status.index,
       'priority': priority.index,
+      'recurrence': recurrence.index, // NEW
     };
   }
 
@@ -63,6 +77,8 @@ class Task {
       due: parseDue(m['due']),
       status: TaskStatus.values[(m['status'] as int?) ?? 0],
       priority: TaskPriority.values[(m['priority'] as int?) ?? 1],
+      recurrence:
+          TaskRecurrence.values[(m['recurrence'] as int?) ?? 0], // default none
     );
   }
 }

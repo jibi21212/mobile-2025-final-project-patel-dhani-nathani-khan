@@ -21,48 +21,71 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   }
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+  }
 
   Color _getPriorityColor(TaskPriority p) {
     switch (p) {
-      case TaskPriority.high: return Colors.red;
-      case TaskPriority.medium: return Colors.orange;
-      case TaskPriority.low: return Colors.green;
+      case TaskPriority.high:
+        return Colors.red;
+      case TaskPriority.medium:
+        return Colors.orange;
+      case TaskPriority.low:
+        return Colors.green;
     }
   }
 
   IconData _getStatusIcon(TaskStatus s) {
     switch (s) {
-      case TaskStatus.todo: return Icons.radio_button_unchecked;
-      case TaskStatus.inProgress: return Icons.hourglass_empty;
-      case TaskStatus.done: return Icons.check_circle;
+      case TaskStatus.todo:
+        return Icons.radio_button_unchecked;
+      case TaskStatus.inProgress:
+        return Icons.hourglass_empty;
+      case TaskStatus.done:
+        return Icons.check_circle;
     }
   }
 
   String _formatDueDate(DateTime dt) {
     final now = DateTime.now();
     final diff = dt.difference(now);
-    
+
     final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
     final minute = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'PM' : 'AM';
     final timeStr = '$hour:$minute $period';
-    
+
     if (diff.inDays == 0) return 'Today at $timeStr';
     if (diff.inDays == 1) return 'Tomorrow at $timeStr';
     if (diff.inDays < 0) return 'Overdue - $timeStr';
-    
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year} at $timeStr';
   }
 
   @override
   Widget build(BuildContext context) {
-    if (t == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    
+    if (t == null)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDone = t!.status == TaskStatus.done;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -81,9 +104,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 builder: (_) => TaskEditSheet(existing: t),
               );
               if (res != null && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Task updated')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Task updated')));
                 _load();
               }
             },
@@ -99,7 +122,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: _getPriorityColor(t!.priority).withOpacity(0.2),
-                border: Border.all(color: _getPriorityColor(t!.priority), width: 2),
+                border: Border.all(
+                  color: _getPriorityColor(t!.priority),
+                  width: 2,
+                ),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -123,7 +149,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             if (t!.description?.isNotEmpty == true) ...[
               Card(
                 child: Padding(
@@ -183,14 +209,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                       children: [
                         const Text(
                           'Status',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          t!.status.name[0].toUpperCase() + t!.status.name.substring(1),
+                          t!.status.name[0].toUpperCase() +
+                              t!.status.name.substring(1),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -261,7 +285,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                     await repo.update(updated);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Task marked as complete!')),
+                        const SnackBar(
+                          content: Text('Task marked as complete!'),
+                        ),
                       );
                       _load();
                     }

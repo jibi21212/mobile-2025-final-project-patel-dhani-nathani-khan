@@ -10,13 +10,15 @@ import 'services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Timezone and Firebase
   tz.initializeTimeZones();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Auth and notifications
   AuthService.instance.startListening();
   await NotificationService().initialize();
 
+  // Router with auth
   final router = createRouter(AuthService.instance);
   runApp(App(router: router));
 }
@@ -44,7 +46,7 @@ class App extends StatelessWidget {
         cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
         ),
       ),
@@ -62,7 +64,7 @@ class App extends StatelessWidget {
         cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
         ),
       ),

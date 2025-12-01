@@ -18,16 +18,18 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
   DateTime? _due;
   TaskStatus _status = TaskStatus.todo;
   TaskPriority _priority = TaskPriority.medium;
+  TaskRecurrence _recurrence = TaskRecurrence.none;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
     _title = e?.title ?? '';
-    _desc  = e?.description;
-    _due   = e?.due;
-    _status= e?.status ?? TaskStatus.todo;
+    _desc = e?.description;
+    _due = e?.due;
+    _status = e?.status ?? TaskStatus.todo;
     _priority = e?.priority ?? TaskPriority.medium;
+    _recurrence = e?.recurrence ?? TaskRecurrence.none;
   }
 
   Future<void> _save() async {
@@ -40,6 +42,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
       due: _due,
       status: _status,
       priority: _priority,
+      recurrence: _recurrence,
     );
     if (widget.existing == null) {
       final id = await _repo.create(t);
@@ -55,15 +58,29 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
   }
 
   String _formatDue(DateTime d) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // Format as: Dec 1, 2025 at 3:45 PM
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final month = months[d.month - 1];
     final day = d.day;
     final year = d.year;
-    
+
     final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
     final minute = d.minute.toString().padLeft(2, '0');
     final period = d.hour >= 12 ? 'PM' : 'AM';
-    
+
     return '$month $day, $year at $hour:$minute $period';
   }
 
@@ -93,10 +110,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
     final initial = _due != null
         ? TimeOfDay(hour: _due!.hour, minute: _due!.minute)
         : now;
-    final res = await showTimePicker(
-      context: context,
-      initialTime: initial,
-    );
+    final res = await showTimePicker(context: context, initialTime: initial);
     if (res != null) {
       setState(() {
         final baseDate = _due ?? DateTime.now();
@@ -112,14 +126,17 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? Theme.of(context).colorScheme.surface : Colors.white;
-    final fieldColor = isDark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.grey.shade50;
-    
+    final bgColor = isDark
+        ? Theme.of(context).colorScheme.surface
+        : Colors.white;
+    final fieldColor = isDark
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : Colors.grey.shade50;
+
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
@@ -150,8 +167,8 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                   Text(
                     widget.existing == null ? 'New Task' : 'Edit Task',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   TextFormField(
@@ -163,11 +180,15 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                       fillColor: fieldColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -177,7 +198,8 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                         ),
                       ),
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
                     onSaved: (v) => _title = v ?? '',
                   ),
                   const SizedBox(height: 16),
@@ -190,11 +212,15 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                       fillColor: fieldColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -216,7 +242,9 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                           decoration: BoxDecoration(
                             color: fieldColor,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Theme.of(context).dividerColor),
+                            border: Border.all(
+                              color: Theme.of(context).dividerColor,
+                            ),
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: DropdownButtonFormField<TaskPriority>(
@@ -225,23 +253,32 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                               border: InputBorder.none,
                               labelText: 'Priority',
                             ),
-                            items: TaskPriority.values.map((p) => DropdownMenuItem(
-                              value: p,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    margin: const EdgeInsets.only(right: 8),
-                                    decoration: BoxDecoration(
-                                      color: _getPriorityColor(p),
-                                      shape: BoxShape.circle,
+                            items: TaskPriority.values
+                                .map(
+                                  (p) => DropdownMenuItem(
+                                    value: p,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 12,
+                                          height: 12,
+                                          margin: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _getPriorityColor(p),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        Text(
+                                          p.name[0].toUpperCase() +
+                                              p.name.substring(1),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  Text(p.name[0].toUpperCase() + p.name.substring(1)),
-                                ],
-                              ),
-                            )).toList(),
+                                )
+                                .toList(),
                             onChanged: (v) => setState(() => _priority = v!),
                           ),
                         ),
@@ -252,7 +289,9 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                           decoration: BoxDecoration(
                             color: fieldColor,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Theme.of(context).dividerColor),
+                            border: Border.all(
+                              color: Theme.of(context).dividerColor,
+                            ),
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: DropdownButtonFormField<TaskStatus>(
@@ -261,10 +300,17 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                               border: InputBorder.none,
                               labelText: 'Status',
                             ),
-                            items: TaskStatus.values.map((s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(s.name[0].toUpperCase() + s.name.substring(1)),
-                            )).toList(),
+                            items: TaskStatus.values
+                                .map(
+                                  (s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(
+                                      s.name[0].toUpperCase() +
+                                          s.name.substring(1),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                             onChanged: (v) => setState(() => _status = v!),
                           ),
                         ),
@@ -275,16 +321,26 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.3),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.calendar_today, size: 20, color: Theme.of(context).colorScheme.primary),
+                            Icon(
+                              Icons.calendar_today,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Due Date',
@@ -309,7 +365,9 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                                 icon: const Icon(Icons.event, size: 18),
                                 label: const Text('Pick Date'),
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -323,7 +381,9 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                                 icon: const Icon(Icons.access_time, size: 18),
                                 label: const Text('Pick Time'),
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -338,7 +398,10 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                                 label: const Text('Clear'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.red.shade400,
-                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -350,6 +413,78 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 24),
+
+                  // Recurrence section
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceVariant.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.repeat,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Repeats',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<TaskRecurrence>(
+                          value: _recurrence,
+                          decoration: const InputDecoration(
+                            labelText: 'Recurrence',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: TaskRecurrence.none,
+                              child: Text('Does not repeat'),
+                            ),
+                            DropdownMenuItem(
+                              value: TaskRecurrence.daily,
+                              child: Text('Daily'),
+                            ),
+                            DropdownMenuItem(
+                              value: TaskRecurrence.weekdays,
+                              child: Text('Weekdays (Mon–Fri)'),
+                            ),
+                            DropdownMenuItem(
+                              value: TaskRecurrence.weekly,
+                              child: Text('Weekly'),
+                            ),
+                            DropdownMenuItem(
+                              value: TaskRecurrence.monthly,
+                              child: Text('Monthly'),
+                            ),
+                          ],
+                          onChanged: (v) => setState(() => _recurrence = v!),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   const SizedBox(height: 24),
                   Row(
                     children: [
@@ -392,9 +527,12 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
 
   Color _getPriorityColor(TaskPriority p) {
     switch (p) {
-      case TaskPriority.high: return Colors.red;
-      case TaskPriority.medium: return Colors.orange;
-      case TaskPriority.low: return Colors.green;
+      case TaskPriority.high:
+        return Colors.red;
+      case TaskPriority.medium:
+        return Colors.orange;
+      case TaskPriority.low:
+        return Colors.green;
     }
   }
 }
