@@ -27,13 +27,11 @@ class NotificationService {
 
     final initialized = await _notifications.initialize(initSettings);
     print('Notifications initialized: $initialized');
-    
-    // Create notification channels for Android
+
     await _createNotificationChannels();
     
     _initialized = true;
 
-    // Request permissions for Android 13+
     await _requestPermissions();
   }
 
@@ -42,7 +40,6 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     
     if (androidPlugin != null) {
-      // Channel for task reminders
       const reminderChannel = AndroidNotificationChannel(
         'task_reminders',
         'Task Reminders',
@@ -52,7 +49,6 @@ class NotificationService {
         enableVibration: true,
       );
       
-      // Channel for task updates
       const updateChannel = AndroidNotificationChannel(
         'task_updates',
         'Task Updates',
@@ -100,7 +96,6 @@ class NotificationService {
       return;
     }
 
-    // Schedule notification 1 hour before due time
     final reminderTime = task.due!.subtract(const Duration(hours: 1));
     if (reminderTime.isBefore(now)) {
       print('Cannot schedule notification: reminder time is in the past (${reminderTime})');
@@ -187,7 +182,6 @@ class NotificationService {
     await _notifications.cancelAll();
   }
 
-  // Test method to schedule a notification 10 seconds from now
   Future<void> testScheduledNotification() async {
     final now = DateTime.now();
     final testTime = now.add(const Duration(seconds: 10));
@@ -196,7 +190,7 @@ class NotificationService {
     
     try {
       await _notifications.zonedSchedule(
-        999999, // Use a unique ID for test
+        999999,
         'Test Scheduled Notification',
         'This notification was scheduled 10 seconds ago',
         tz.TZDateTime.from(testTime, tz.local),

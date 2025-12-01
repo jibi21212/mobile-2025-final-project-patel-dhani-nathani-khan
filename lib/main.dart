@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:firebase_core/firebase_core.dart';
 import 'app_router.dart';
+import 'firebase_options.dart';
+import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize timezone and notifications
+
   tz.initializeTimeZones();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  AuthService.instance.startListening();
   await NotificationService().initialize();
-  
-  runApp(const App());
+
+  final router = createRouter(AuthService.instance);
+  runApp(App(router: router));
 }
 
 class App extends StatelessWidget {
-  const App({super.key});
+  const App({super.key, required this.router});
+
+  final GoRouter router;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
@@ -56,7 +67,7 @@ class App extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      routerConfig: appRouter,
+      routerConfig: router,
     );
   }
 }

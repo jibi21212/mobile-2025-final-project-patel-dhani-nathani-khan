@@ -95,7 +95,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Priority Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -125,7 +124,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             ),
             const SizedBox(height: 24),
             
-            // Description Card
             if (t!.description?.isNotEmpty == true) ...[
               Card(
                 child: Padding(
@@ -163,7 +161,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               const SizedBox(height: 16),
             ],
 
-            // Status Card
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -207,7 +204,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Due Date Card
             if (t!.due != null) ...[
               Card(
                 child: Padding(
@@ -256,7 +252,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             ] else
               const SizedBox(height: 24),
 
-            // Mark Complete Button
             if (!isDone)
               SizedBox(
                 width: double.infinity,

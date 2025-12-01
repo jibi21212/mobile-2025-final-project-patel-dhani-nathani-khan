@@ -8,7 +8,6 @@ class Task {
   final DateTime? due;
   final TaskStatus status;
   final TaskPriority priority;
-  // Will add the "assigned user" field later once we have collaborative work features implemented, until then, this feature is not needed
   Task({
     this.id,
     required this.title,
@@ -36,13 +35,12 @@ class Task {
     );
   }
 
-  // SQLite mapping
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'title': title,
       'description': description,
-      'due': due?.millisecondsSinceEpoch,   // <— time-safe
+      'due': due?.millisecondsSinceEpoch,
       'status': status.index,
       'priority': priority.index,
     };

@@ -64,11 +64,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Summary Cards
               _buildSummaryCards(),
               const SizedBox(height: 24),
               
-              // Status Chart
               Text(
                 'Task Status',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -79,7 +77,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildStatusChart(),
               const SizedBox(height: 24),
               
-              // Priority Distribution
               Text(
                 'Priority Distribution',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -90,7 +87,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildPriorityChart(),
               const SizedBox(height: 24),
               
-              // Completion Progress
               Text(
                 'Completion Rate',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(

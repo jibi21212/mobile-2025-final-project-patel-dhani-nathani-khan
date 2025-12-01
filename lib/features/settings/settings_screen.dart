@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/notification_service.dart';
+import '../../services/auth_service.dart';
+import 'package:go_router/go_router.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,6 +12,29 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool notifications = true;
   final _notificationService = NotificationService();
+  final _authService = AuthService.instance;
+  String? _userLabel;
+  String? _guestId;
+
+  @override
+  void initState() {
+    super.initState();
+    _userLabel = _authService.email ?? (_authService.guestId != null ? 'Guest ${_authService.guestId}' : null);
+    _guestId = _authService.guestId;
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await _authService.signOut();
+      if (!mounted) return;
+      context.go('/auth');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign out failed: $e')),
+      );
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -27,6 +52,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.person_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Text(_userLabel ?? 'Not signed in'),
+                  subtitle: _guestId != null
+                      ? Text('Guest ID: $_guestId (use as username & password)')
+                      : const Text('Email / password account'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(
+                    Icons.logout,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('Sign out'),
+                  subtitle: const Text('We will keep your local tasks saved'),
+                  onTap: _signOut,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             child: Column(
               children: [
@@ -102,9 +154,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   title: const Text('Cloud Sync'),
-                  subtitle: const Text('Coming soon'),
+                  subtitle: const Text('Use Sync on the task list to push/pull data'),
                   trailing: const Icon(Icons.chevron_right),
-                  enabled: false,
+                  onTap: () => context.go('/'),
                 ),
                 const Divider(height: 1),
                 ListTile(

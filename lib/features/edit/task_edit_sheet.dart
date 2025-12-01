@@ -50,14 +50,11 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
     }
   }
 
-  // Helper Function to combine DateTime and TimeOfDay into a single DateTime object
   DateTime _combineDateAndTime(DateTime date, TimeOfDay time) {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
-  // Helper Function to help quickly display
   String _formatDue(DateTime d) {
-    // Format as: Dec 1, 2025 at 3:45 PM
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final month = months[d.month - 1];
     final day = d.day;
@@ -82,11 +79,9 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
     if (res != null) {
       setState(() {
         if (_due != null) {
-          // keep previously chosen time if any
           final t = TimeOfDay(hour: _due!.hour, minute: _due!.minute);
           _due = _combineDateAndTime(res, t);
         } else {
-          // no time picked yet → default to 09:00
           _due = _combineDateAndTime(res, const TimeOfDay(hour: 9, minute: 0));
         }
       });
@@ -104,9 +99,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
     );
     if (res != null) {
       setState(() {
-        // If no date yet, default date to today when time is chosen first
         final baseDate = _due ?? DateTime.now();
-        // Ensure we keep the date portion and only update the time
         _due = DateTime(
           baseDate.year,
           baseDate.month,
@@ -114,7 +107,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
           res.hour,
           res.minute,
         );
-        print('Updated time to: $_due'); // Debug print
+        print('Updated time to: $_due');
       });
     }
   }
