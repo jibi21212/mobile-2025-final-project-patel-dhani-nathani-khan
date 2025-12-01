@@ -80,8 +80,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (t == null)
+    if (t == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDone = t!.status == TaskStatus.done;
@@ -150,6 +151,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Description Card
             if (t!.description?.isNotEmpty == true) ...[
               Card(
                 child: Padding(
@@ -314,7 +316,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green),
+                    const Icon(Icons.check_circle, color: Colors.green),
                     const SizedBox(width: 8),
                     Text(
                       'Task Completed',
