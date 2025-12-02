@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:confetti/confetti.dart';
+import 'dart:math';
 import '../../data/task_repo.dart';
 import '../../data/task.dart';
 import '../edit/task_edit_sheet.dart';
@@ -27,6 +29,8 @@ class _TaskListScreenState extends State<TaskListScreen>
   String _searchQuery = '';
   TaskSortMode _sortMode = TaskSortMode.byDueDate;
   bool _hideCompleted = false;
+  
+  late ConfettiController _confettiController;
 
   Future<void> _load() async {
     tasks = await repo.all();
@@ -36,12 +40,14 @@ class _TaskListScreenState extends State<TaskListScreen>
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     WidgetsBinding.instance.addObserver(this);
     _load().then((_) => _maybeInitialSync());
   }
 
   @override
   void dispose() {
+    _confettiController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -326,23 +332,30 @@ class _TaskListScreenState extends State<TaskListScreen>
         itemBuilder: (_, i) {
           final t = visibleTasks[i];
           final isDone = t.status == TaskStatus.done;
-          return Dismissible(
-            key: ValueKey(t.id ?? '${t.title}-$i'),
-            background: Container(
-              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.red.shade400,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            confirmDismiss: (_) async {
-              await _delete(t);
-              return false;
-            },
-            child: Card(
+          return AnimatedScale(
+            scale: 1.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: AnimatedOpacity(
+              opacity: 1.0,
+              duration: const Duration(milliseconds: 300),
+              child: Dismissible(
+                key: ValueKey(t.id ?? '${t.title}-$i'),
+                background: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade400,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                confirmDismiss: (_) async {
+                  await _delete(t);
+                  return false;
+                },
+                child: Card(
               margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -415,6 +428,11 @@ class _TaskListScreenState extends State<TaskListScreen>
                             final updated = t.copyWith(status: newStatus);
                             await repo.update(updated);
                             _load();
+                            
+                            // Trigger confetti when completing a task
+                            if (newStatus == TaskStatus.done) {
+                              _confettiController.play();
+                            }
 
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -587,7 +605,9 @@ class _TaskListScreenState extends State<TaskListScreen>
                 ),
               ),
             ),
-          );
+          ),
+        ),
+      );
         },
       ),
     );
@@ -596,8 +616,10 @@ class _TaskListScreenState extends State<TaskListScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      appBar: AppBar(
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
         centerTitle: true,
         title: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -833,6 +855,30 @@ class _TaskListScreenState extends State<TaskListScreen>
         icon: const Icon(Icons.add),
         label: const Text('New Task'),
       ),
-    );
+    ),
+    // Confetti overlay
+    Align(
+      alignment: Alignment.topCenter,
+      child: ConfettiWidget(
+        confettiController: _confettiController,
+        blastDirection: pi / 2, // Downward
+        maxBlastForce: 5,
+        minBlastForce: 2,
+        emissionFrequency: 0.05,
+        numberOfParticles: 30,
+        gravity: 0.3,
+        shouldLoop: false,
+        colors: const [
+          Colors.green,
+          Colors.blue,
+          Colors.pink,
+          Colors.orange,
+          Colors.purple,
+          Colors.yellow,
+        ],
+      ),
+    ),
+    ],
+  );
   }
 }

@@ -45,6 +45,7 @@ dependencies:
   firebase_auth: ^5.3.3
   cloud_firestore: ^5.4.4
   shared_preferences: ^2.3.2
+  confetti: ^0.7.0
 
 dev_dependencies:
   flutter_test:
